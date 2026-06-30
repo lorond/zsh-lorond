@@ -9,16 +9,29 @@
 #  * space between pwd and vsc status
 
 # settings
-typeset +H return_code="%(?..%{$fg[red]%}%? ↵%{$reset_color%})"
+typeset +H return_code=""
 typeset +H my_gray="$FG[237]"
 typeset +H my_orange="$FG[214]"
 
+# show the return code only on the first prompt after a command actually ran
+typeset -g _af_cmd_ran=0
+af_rc_preexec() { _af_cmd_ran=1 }
+af_rc_precmd() {
+  local code=$?   # preserve real $? for any later precmd hooks
+  (( _af_cmd_ran && code )) && return_code="%F{red} ↵ $code%f"$'\n' || return_code=''
+  _af_cmd_ran=0
+  return $code
+}
+autoload -Uz add-zsh-hook
+add-zsh-hook preexec af_rc_preexec
+add-zsh-hook precmd  af_rc_precmd
+
 # primary prompt
-PS1='
+PS1='${return_code}
 $my_gray%n@%m%{$reset_color%} $FG[032]%~ $(git_prompt_info)$(hg_prompt_info)
 $FG[105]%(!.#.»)%{$reset_color%} '
 PS2='%{$fg[red]%}\ %{$reset_color%}'
-RPS1='${return_code}'
+RPS1=''
 
 # right prompt
 (( $+functions[virtualenv_prompt_info] )) && RPS1+='$(virtualenv_prompt_info)'
